@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../services/service_locator.dart';
 import '../../utils/helpers.dart';
 
@@ -32,6 +34,11 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
   bool _isActive = true;
 
   List<Map<String, dynamic>> _categories = [];
+
+  // Images
+  List<Map<String, dynamic>> _existingImages = []; // {id, imageUrl, isPrimary}
+  final List<File> _newImageFiles = [];
+  bool _uploadingImage = false;
 
   bool get _isEdit => widget.product != null;
 
@@ -104,10 +111,77 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
           _selectedCategoryId = d['categoryId'] as int? ?? _selectedCategoryId;
           _isFeatured = d['isFeatured'] == true;
           _isActive = d['isActive'] != false;
+          // Load existing images
+          final imgs = d['productImages'] ?? d['images'];
+          if (imgs is List) {
+            _existingImages = imgs.map((e) => {
+              'id': e['id'],
+              'imageUrl': e['imageUrl'] ?? '',
+              'isPrimary': e['isPrimary'] == true,
+            }).toList();
+          }
         });
       }
     } catch (_) {}
     setState(() => _loadingDetail = false);
+  }
+
+  Future<void> _pickAndUploadImage() async {
+    if (!_isEdit) {
+      Helpers.showSnackBar(context, 'Hãy tạo sản phẩm trước, sau đó thêm ảnh khi chỉnh sửa.', isError: true);
+      return;
+    }
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    if (picked == null) return;
+
+    final file = File(picked.path);
+    setState(() => _uploadingImage = true);
+    try {
+      final uploadRes = await sl.adminService.uploadProductImage(file);
+      if (!mounted) return;
+      if (!uploadRes.success || uploadRes.data == null) {
+        Helpers.showSnackBar(context, uploadRes.message ?? 'Upload thất bại', isError: true);
+        return;
+      }
+      final imageUrl = uploadRes.data!;
+      final productId = (widget.product!['productId'] ?? widget.product!['id']) as int;
+      final isPrimary = _existingImages.isEmpty;
+      final addRes = await sl.adminService.addProductImage(productId, imageUrl, isPrimary: isPrimary);
+      if (!mounted) return;
+      if (addRes.success) {
+        Helpers.showSnackBar(context, 'Thêm ảnh thành công!');
+        await _loadProductDetail(); // reload để có imageId
+      } else {
+        Helpers.showSnackBar(context, addRes.message ?? 'Lưu ảnh thất bại', isError: true);
+      }
+    } catch (e) {
+      if (mounted) Helpers.showSnackBar(context, 'Lỗi: $e', isError: true);
+    }
+    if (mounted) setState(() => _uploadingImage = false);
+  }
+
+  Future<void> _deleteImage(int imageId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Xóa ảnh?'),
+        content: const Text('Bạn có chắc muốn xóa ảnh này không?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Xóa', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    final res = await sl.adminService.deleteProductImage(imageId);
+    if (!mounted) return;
+    if (res.success) {
+      setState(() => _existingImages.removeWhere((img) => img['id'] == imageId));
+      Helpers.showSnackBar(context, 'Đã xóa ảnh');
+    } else {
+      Helpers.showSnackBar(context, res.message ?? 'Xóa thất bại', isError: true);
+    }
   }
 
   void _autoSlug(String name) {
@@ -215,6 +289,70 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                     _field(_brandCtrl, 'Thương hiệu'),
                     const SizedBox(height: 12),
                     _field(_materialCtrl, 'Chất liệu'),
+                  ]),
+
+                  const SizedBox(height: 12),
+                  _card([
+                    Row(
+                      children: [
+                        Expanded(child: _label('Hình ảnh sản phẩm')),
+                        if (_uploadingImage)
+                          const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                        else
+                          TextButton.icon(
+                            onPressed: _pickAndUploadImage,
+                            icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
+                            label: const Text('Thêm ảnh'),
+                            style: TextButton.styleFrom(foregroundColor: Colors.black),
+                          ),
+                      ],
+                    ),
+                    if (!_isEdit)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+                        child: const Text('Tạo sản phẩm trước, sau đó chỉnh sửa để thêm ảnh.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      )
+                    else if (_existingImages.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+                        child: const Center(child: Text('Chưa có ảnh nào', style: TextStyle(color: Colors.grey, fontSize: 12))),
+                      )
+                    else
+                      SizedBox(
+                        height: 110,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _existingImages.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 8),
+                          itemBuilder: (ctx, i) {
+                            final img = _existingImages[i];
+                            return Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(img['imageUrl'] as String, width: 100, height: 100, fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => Container(width: 100, height: 100, color: Colors.grey.shade200,
+                                          child: const Icon(Icons.broken_image, color: Colors.grey))),
+                                ),
+                                if (img['isPrimary'] == true)
+                                  Positioned(bottom: 4, left: 4,
+                                      child: Container(padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                          decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(4)),
+                                          child: const Text('Chính', style: TextStyle(color: Colors.white, fontSize: 10)))),
+                                Positioned(top: 2, right: 2,
+                                    child: GestureDetector(
+                                      onTap: () => _deleteImage(img['id'] as int),
+                                      child: Container(width: 22, height: 22,
+                                          decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                          child: const Icon(Icons.close, color: Colors.white, size: 14)),
+                                    )),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
                   ]),
 
                   const SizedBox(height: 12),

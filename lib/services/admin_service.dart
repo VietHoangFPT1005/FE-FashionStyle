@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:dio/dio.dart';
 import '../config/api_config.dart';
 import '../models/api_response.dart';
 import 'api_client.dart';
@@ -90,6 +92,30 @@ class AdminService {
 
   Future<ApiResponse> deleteProduct(int productId) async {
     final res = await _client.delete(ApiConfig.adminProductDetail(productId));
+    return ApiResponse.fromJson(res.data, null);
+  }
+
+  // Upload ảnh lên Cloudinary, trả về URL string
+  Future<ApiResponse<String>> uploadProductImage(File imageFile) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(imageFile.path, filename: imageFile.path.split('/').last),
+    });
+    final res = await _client.uploadFile(ApiConfig.adminProductUploadImage, formData);
+    return ApiResponse.fromJson(res.data, (d) => d as String);
+  }
+
+  // Thêm URL ảnh vào sản phẩm
+  Future<ApiResponse> addProductImage(int productId, String imageUrl, {bool isPrimary = false}) async {
+    final res = await _client.post(ApiConfig.adminProductImages(productId), data: {
+      'imageUrl': imageUrl,
+      'isPrimary': isPrimary,
+    });
+    return ApiResponse.fromJson(res.data, null);
+  }
+
+  // Xóa ảnh sản phẩm
+  Future<ApiResponse> deleteProductImage(int imageId) async {
+    final res = await _client.delete(ApiConfig.adminImage(imageId));
     return ApiResponse.fromJson(res.data, null);
   }
 

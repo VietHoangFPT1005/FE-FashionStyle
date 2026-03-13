@@ -126,6 +126,7 @@ class ApiConfig {
 
   // Admin Products
   static const String adminProducts = '/admin/products';
+  static const String adminProductUploadImage = '/admin/products/upload-image';
   static String adminProductDetail(int id) => '/admin/products/$id';
   static String adminProductVariants(int id) => '/admin/products/$id/variants';
   static String adminVariant(int id) => '/admin/products/variants/$id';
