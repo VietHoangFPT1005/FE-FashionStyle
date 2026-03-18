@@ -29,6 +29,7 @@ class _ShipperOrdersScreenState extends State<ShipperOrdersScreen>
     {'label': 'Chờ lấy', 'status': 'PROCESSING'},
     {'label': 'Đang giao', 'status': 'SHIPPING'},
     {'label': 'Hoàn thành', 'status': 'DELIVERED'},
+    {'label': 'Đã huỷ', 'status': 'CANCELLED'},
   ];
 
   @override
@@ -151,37 +152,87 @@ class _ShipperOrdersScreenState extends State<ShipperOrdersScreen>
     final reasonCtrl = TextEditingController();
     final reason = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: const RoundedRectangleBorder(),
-        title: Text('Giao hàng thất bại',
-            style: GoogleFonts.cormorantGaramond(
-                fontSize: 18, fontWeight: FontWeight.w700)),
-        content: TextField(
-          controller: reasonCtrl,
-          decoration: const InputDecoration(
-              hintText: 'Lý do (không bắt buộc)', border: OutlineInputBorder()),
-          maxLines: 2,
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text('Hủy',
-                  style: TextStyle(color: Colors.grey.shade600))),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, reasonCtrl.text.trim()),
-              child: const Text('Báo cáo',
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setStateDialog) => AlertDialog(
+          shape: const RoundedRectangleBorder(),
+          title: Text('Giao hàng thất bại',
+              style: GoogleFonts.cormorantGaramond(
+                  fontSize: 18, fontWeight: FontWeight.w700)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '* Lý do thất bại (bắt buộc)',
+                style: TextStyle(fontSize: 12, color: Colors.red),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: reasonCtrl,
+                onChanged: (_) => setStateDialog(() {}),
+                decoration: InputDecoration(
+                  hintText: 'VD: Khách không nghe máy, sai địa chỉ...',
+                  border: const OutlineInputBorder(),
+                  errorText: reasonCtrl.text.trim().isEmpty ? null : null,
+                ),
+                maxLines: 2,
+                autofocus: true,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text('Hủy',
+                    style: TextStyle(color: Colors.grey.shade600))),
+            TextButton(
+                onPressed: reasonCtrl.text.trim().isEmpty
+                    ? null // disabled khi chưa nhập
+                    : () => Navigator.pop(ctx, reasonCtrl.text.trim()),
+                child: Text(
+                  'Báo cáo',
                   style: TextStyle(
-                      color: Colors.red, fontWeight: FontWeight.bold))),
-        ],
+                    color: reasonCtrl.text.trim().isEmpty
+                        ? Colors.grey
+                        : Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                )),
+          ],
+        ),
       ),
     );
-    if (reason == null) return;
+    if (reason == null || reason.isEmpty) return;
     try {
       final res = await sl.shipperService.deliveryFailed(orderId,
           reason: reason.isNotEmpty ? reason : null);
       if (res.success) {
-        Helpers.showSnackBar(context, 'Đã báo cáo giao hàng thất bại');
+        // Kiểm tra BE trả về data.status == CANCELLED (hết 3 lần)
+        final data = res.data as Map<String, dynamic>?;
+        final isAutoCancelled = data?['status'] == 'CANCELLED';
+
+        if (isAutoCancelled) {
+          Helpers.showSnackBar(
+            context,
+            '❌ Đã thất bại 3 lần — đơn hàng bị huỷ tự động',
+            isError: true,
+          );
+        } else {
+          final attempts = data?['deliveryAttempts'] ?? 0;
+          final maxAttempts = data?['maxAttempts'] ?? 3;
+          final remaining = maxAttempts - attempts;
+          Helpers.showSnackBar(
+            context,
+            '⚠️ Giao thất bại lần $attempts/$maxAttempts — còn $remaining lần thử',
+          );
+        }
         _loadOrders(_currentFilter);
+      } else {
+        Helpers.showSnackBar(
+          context,
+          res.message ?? 'Thao tác thất bại',
+          isError: true,
+        );
       }
     } catch (_) {
       Helpers.showSnackBar(context, 'Thao tác thất bại', isError: true);
@@ -270,6 +321,8 @@ class _ShipperOrdersScreenState extends State<ShipperOrdersScreen>
     final customerPhone =
         shippingInfo?['phone'] ?? order['customerPhone'] ?? '';
     final totalItems = order['totalItems'] ?? 0;
+    final deliveryAttempts = (order['deliveryAttempts'] as num?)?.toInt() ?? 0;
+    final cancelReason = order['cancelReason'] as String?;
 
     Color statusColor;
     String statusText;
@@ -285,6 +338,10 @@ class _ShipperOrdersScreenState extends State<ShipperOrdersScreen>
       case 'DELIVERED':
         statusColor = Colors.green;
         statusText = 'Đã giao';
+        break;
+      case 'CANCELLED':
+        statusColor = Colors.red;
+        statusText = 'Đã huỷ';
         break;
       default:
         statusColor = Colors.grey;
@@ -334,11 +391,32 @@ class _ShipperOrdersScreenState extends State<ShipperOrdersScreen>
                 const SizedBox(height: 4),
                 _infoRow(Icons.shopping_bag_outlined,
                     '$totalItems sản phẩm · ${Helpers.formatCurrency(total)}'),
+                if (deliveryAttempts > 0 && status != 'CANCELLED') ...[
+                  const SizedBox(height: 4),
+                  _infoRow(
+                    Icons.warning_amber_rounded,
+                    'Đã thất bại $deliveryAttempts/3 lần',
+                    iconColor: Colors.orange,
+                    textColor: Colors.orange,
+                  ),
+                ],
+                if (status == 'CANCELLED' && cancelReason != null && cancelReason.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  _infoRow(
+                    Icons.cancel_outlined,
+                    'Lý do: $cancelReason',
+                    iconColor: Colors.red,
+                    textColor: Colors.red.shade700,
+                  ),
+                ],
+                if (status == 'CANCELLED' || status == 'DELIVERED')
+                  const SizedBox(height: 14),
               ],
             ),
           ),
 
-          // Actions
+          // Actions — ẩn nếu đã huỷ hoặc đã giao
+          if (status != 'CANCELLED' && status != 'DELIVERED')
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
             child: Row(
@@ -401,16 +479,20 @@ class _ShipperOrdersScreenState extends State<ShipperOrdersScreen>
     );
   }
 
-  Widget _infoRow(IconData icon, String text) {
+  Widget _infoRow(IconData icon, String text, {Color? iconColor, Color? textColor}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 15, color: Colors.grey.shade500),
+        Icon(icon, size: 15, color: iconColor ?? Colors.grey.shade500),
         const SizedBox(width: 6),
         Expanded(
           child: Text(
             text,
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+            style: TextStyle(
+              fontSize: 13,
+              color: textColor ?? Colors.grey.shade700,
+              fontWeight: textColor != null ? FontWeight.w600 : FontWeight.normal,
+            ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),

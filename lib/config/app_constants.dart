@@ -39,6 +39,10 @@ class AppConstants {
   static const int locationUpdateInterval = 5; // seconds
   static const int trackingPollInterval = 5; // seconds
 
+  // Shipper default start position (dùng khi GPS ngoài VN / emulator)
+  static const double shipperDefaultLat = 10.845200; // Khu CNC, Q9, HCM
+  static const double shipperDefaultLng = 106.787700;
+
   // Refund
   static const int refundWindowDays = 7;
 

@@ -54,11 +54,27 @@ class _ShipperDeliveryScreenState extends State<ShipperDeliveryScreen> {
     super.dispose();
   }
 
+  /// Kiểm tra tọa độ có nằm trong lãnh thổ Việt Nam không
+  bool _isInVietnam(double lat, double lng) {
+    return lat >= 8.0 && lat <= 24.0 && lng >= 102.0 && lng <= 110.0;
+  }
+
   Future<void> _initCurrentLocation() async {
     final pos = await sl.locationService.getCurrentPosition();
     if (pos != null && mounted) {
+      LatLng position;
+      if (_isInVietnam(pos.latitude, pos.longitude)) {
+        // GPS hợp lệ (real device)
+        position = LatLng(pos.latitude, pos.longitude);
+      } else {
+        // Emulator / GPS ngoài VN → dùng vị trí mặc định của shipper
+        position = LatLng(
+          AppConstants.shipperDefaultLat,
+          AppConstants.shipperDefaultLng,
+        );
+      }
       setState(() {
-        _currentPosition = LatLng(pos.latitude, pos.longitude);
+        _currentPosition = position;
         _calculateDistance();
       });
     }
