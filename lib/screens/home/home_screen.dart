@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:carousel_slider/carousel_slider.dart';
+import '../../utils/app_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../config/app_routes.dart';
@@ -345,11 +345,11 @@ class _HomeScreenState extends State<HomeScreen> {
             return Stack(
               fit: StackFit.expand,
               children: [
-                CachedNetworkImage(
+                AppNetworkImage(
                   imageUrl: banner['url']!,
                   fit: BoxFit.cover,
-                  placeholder: (_, __) => Container(color: Colors.grey.shade200),
-                  errorWidget: (_, __, ___) => Container(
+                  placeholder: Container(color: Colors.grey.shade200),
+                  errorWidget: Container(
                     color: Colors.grey.shade200,
                     child: const Icon(Icons.image, size: 60, color: Colors.grey),
                   ),
@@ -527,10 +527,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             clipBehavior: Clip.antiAlias,
             child: category.imageUrl != null
-                ? CachedNetworkImage(
+                ? AppNetworkImage(
                     imageUrl: category.imageUrl!,
                     fit: BoxFit.cover,
-                    errorWidget: (_, __, ___) => _categoryIcon(category.name),
+                    errorWidget: _categoryIcon(category.name),
                   )
                 : _categoryIcon(category.name),
           ),

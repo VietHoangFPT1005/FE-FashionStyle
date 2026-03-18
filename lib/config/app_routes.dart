@@ -16,6 +16,7 @@ import '../screens/checkout/payment_screen.dart';
 import '../screens/order/order_list_screen.dart';
 import '../screens/order/order_detail_screen.dart';
 import '../screens/order/order_tracking_screen.dart';
+import '../screens/order/order_success_screen.dart';
 import '../screens/address/address_list_screen.dart';
 import '../screens/address/address_form_screen.dart';
 import '../screens/address/address_picker_screen.dart';
@@ -60,6 +61,7 @@ class AppRoutes {
   static const String orders = '/orders';
   static const String orderDetail = '/order-detail';
   static const String orderTracking = '/order-tracking';
+  static const String orderSuccess = '/order-success';
   static const String addresses = '/addresses';
   static const String addressForm = '/address-form';
   static const String addressPicker = '/address-picker';
@@ -135,6 +137,16 @@ class AppRoutes {
       case orderTracking:
         final orderId = settings.arguments as int;
         return _buildRoute(OrderTrackingScreen(orderId: orderId), settings);
+      case orderSuccess:
+        final args = settings.arguments as Map<String, dynamic>;
+        return _buildRoute(
+          OrderSuccessScreen(
+            orderId: args['orderId'] as int,
+            total: (args['total'] as num).toDouble(),
+            paymentMethod: args['paymentMethod'] as String,
+          ),
+          settings,
+        );
       case addresses:
         return _buildRoute(const AddressListScreen(), settings);
       case addressForm:

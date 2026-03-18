@@ -6,8 +6,8 @@
 // - Hỗ trợ gửi hình ảnh
 // ================================================================
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import '../../utils/app_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../models/chat/support_message.dart';
@@ -336,16 +336,16 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
   Widget _buildImageContent(String imageUrl) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
-      child: CachedNetworkImage(
+      child: AppNetworkImage(
         imageUrl: imageUrl,
         width: 200,
         fit: BoxFit.cover,
-        placeholder: (_, __) => Container(
+        placeholder: Container(
           width: 200, height: 150,
           color: Colors.grey.shade200,
           child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
         ),
-        errorWidget: (_, __, ___) => Container(
+        errorWidget: Container(
           width: 200, height: 150,
           color: Colors.grey.shade200,
           child: Icon(Icons.broken_image_outlined, color: Colors.grey.shade400, size: 40),

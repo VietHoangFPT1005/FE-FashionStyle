@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../utils/app_image.dart';
 import '../../config/app_routes.dart';
 import '../../models/category/category.dart';
 
@@ -80,11 +80,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
           children: [
             // Background Image
             category.imageUrl != null
-                ? CachedNetworkImage(
+                ? AppNetworkImage(
                     imageUrl: category.imageUrl!,
                     fit: BoxFit.cover,
-                    placeholder: (_, __) => Container(color: Colors.grey.shade100),
-                    errorWidget: (_, __, ___) => Container(color: Colors.grey.shade100, child: const Icon(Icons.image, color: Colors.grey)),
+                    placeholder: Container(color: Colors.grey.shade100),
+                    errorWidget: Container(color: Colors.grey.shade100, child: const Icon(Icons.image, color: Colors.grey)),
                   )
                 : Container(color: Colors.grey.shade100, child: const Icon(Icons.category, color: Colors.grey)),
             

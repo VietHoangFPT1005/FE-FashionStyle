@@ -41,7 +41,7 @@ class Product {
       description: json['description'],
       price: (json['price'] as num?)?.toDouble() ?? 0,
       salePrice: (json['salePrice'] as num?)?.toDouble(),
-      thumbnailUrl: json['thumbnailUrl'],
+      thumbnailUrl: json['primaryImage'] ?? json['thumbnailUrl'],
       categoryName: json['categoryName'],
       categoryId: json['categoryId'],
       averageRating: (json['averageRating'] as num?)?.toDouble(),

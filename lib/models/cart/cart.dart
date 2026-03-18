@@ -10,12 +10,13 @@ class Cart {
         .map((e) => CartItem.fromJson(e as Map<String, dynamic>))
         .toList();
     // Backend returns totals under summary object
+    // Dùng subtotal (chưa cộng phí ship) để checkout tự cộng riêng
     final summary = json['summary'] as Map<String, dynamic>? ?? {};
-    final serverTotal = (summary['total'] ?? summary['subtotal'] as num?)?.toDouble() ?? 0;
+    final serverSubtotal = (summary['subtotal'] as num?)?.toDouble() ?? 0;
     final calculatedTotal = itemList.fold(0.0, (s, i) => s + i.subtotal);
     return Cart(
       items: itemList,
-      totalAmount: serverTotal > 0 ? serverTotal : calculatedTotal,
+      totalAmount: serverSubtotal > 0 ? serverSubtotal : calculatedTotal,
       totalItems: (summary['totalItems'] as num?)?.toInt() ?? itemList.length,
     );
   }

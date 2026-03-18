@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
+import '../../utils/app_image.dart';
 import '../../models/product/product.dart';
 import '../../config/app_routes.dart';
 import '../../providers/wishlist_provider.dart';
@@ -30,11 +30,11 @@ class ProductCard extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                   product.thumbnailUrl != null
-                      ? CachedNetworkImage(
+                      ? AppNetworkImage(
                           imageUrl: product.thumbnailUrl!,
                           fit: BoxFit.cover,
-                          placeholder: (_, __) => Container(color: Colors.grey.shade100),
-                          errorWidget: (_, __, ___) => Container(
+                          placeholder: Container(color: Colors.grey.shade100),
+                          errorWidget: Container(
                             color: Colors.grey.shade100,
                             child: const Icon(Icons.image_not_supported, size: 30, color: Colors.grey),
                           ),

@@ -78,6 +78,13 @@ class _MainNavigationState extends State<MainNavigation> with SingleTickerProvid
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
           onTap: (i) => setState(() => _currentIndex = i),
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: Colors.white,
+          selectedItemColor: Colors.black,
+          unselectedItemColor: Colors.grey.shade500,
+          selectedLabelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+          unselectedLabelStyle: const TextStyle(fontSize: 10),
+          elevation: 0,
           items: [
             const BottomNavigationBarItem(
               icon: Icon(Icons.home_outlined, size: 26),

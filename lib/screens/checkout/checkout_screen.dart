@@ -118,6 +118,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
     setState(() => _isPlacingOrder = true);
     try {
+      // Tính total giống checkout screen (subtotal + ship - discount)
+      final cart = context.read<CartProvider>();
+      const shippingFee = 30000.0;
+      final clientTotal = cart.totalAmount + shippingFee - _discount;
+
       // Step 1: Create the order
       final request = CreateOrderRequest(
         addressId: _selectedAddress!.addressId,
@@ -138,6 +143,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       if (!mounted) return;
       context.read<CartProvider>().loadCart();
 
+      // Dùng total từ BE nếu hợp lệ, fallback sang clientTotal nếu BE trả sai
+      final finalTotal = orderResp.total > 0 ? orderResp.total : clientTotal;
+
       if (_paymentMethod == 'SEPAY') {
         // Step 2 (SEPAY only): Create SePay QR payment and get bank/QR info
         final payRes = await sl.paymentService.createSepayPayment(orderResp.orderId);
@@ -145,7 +153,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
         if (payRes.success && payRes.data != null) {
           final d = payRes.data!;
-          // Map SePayPaymentResponse JSON fields → PaymentScreen expected keys
           Navigator.pushReplacementNamed(
             context,
             AppRoutes.payment,
@@ -155,21 +162,34 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               'bankAccount': d['accountNumber'] ?? '',
               'bankName': d['bankName'] ?? 'Ngân hàng',
               'transferContent': d['description'] ?? d['orderCode'] ?? '',
-              'amount': (d['amount'] as num?)?.toDouble() ?? orderResp.total,
+              'amount': finalTotal,
+              'orderTotal': finalTotal,
             },
           );
         } else {
-          // Order created but payment QR failed — still go to orders
-          Helpers.showSnackBar(
-              context, 'Đặt hàng thành công nhưng không lấy được QR thanh toán.');
           Navigator.pushNamedAndRemoveUntil(
-              context, AppRoutes.orders, (r) => r.settings.name == AppRoutes.main);
+            context,
+            AppRoutes.orderSuccess,
+            (r) => r.settings.name == AppRoutes.main,
+            arguments: {
+              'orderId': orderResp.orderId,
+              'total': finalTotal,
+              'paymentMethod': 'SEPAY',
+            },
+          );
         }
       } else {
-        // COD: done
-        Helpers.showSnackBar(context, 'Đặt hàng thành công! Đơn hàng đang được xử lý.');
+        // COD: navigate to order success screen
         Navigator.pushNamedAndRemoveUntil(
-            context, AppRoutes.orders, (r) => r.settings.name == AppRoutes.main);
+          context,
+          AppRoutes.orderSuccess,
+          (r) => r.settings.name == AppRoutes.main,
+          arguments: {
+            'orderId': orderResp.orderId,
+            'total': finalTotal,
+            'paymentMethod': 'COD',
+          },
+        );
       }
     } catch (e) {
       if (mounted) Helpers.showSnackBar(context, 'Đặt hàng thất bại. Vui lòng thử lại.', isError: true);

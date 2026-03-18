@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../../utils/app_image.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../services/service_locator.dart';
 import '../../utils/helpers.dart';
@@ -115,7 +116,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
           final imgs = d['productImages'] ?? d['images'];
           if (imgs is List) {
             _existingImages = imgs.map((e) => {
-              'id': e['id'],
+              'id': e['imageId'] ?? e['id'],
               'imageUrl': e['imageUrl'] ?? '',
               'isPrimary': e['isPrimary'] == true,
             }).toList();
@@ -332,8 +333,12 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                               children: [
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
-                                  child: Image.network(img['imageUrl'] as String, width: 100, height: 100, fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => Container(width: 100, height: 100, color: Colors.grey.shade200,
+                                  child: AppNetworkImage(
+                                      imageUrl: img['imageUrl'] as String,
+                                      width: 100, height: 100, fit: BoxFit.cover,
+                                      placeholder: Container(width: 100, height: 100, color: Colors.grey.shade200,
+                                          child: const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)))),
+                                      errorWidget: Container(width: 100, height: 100, color: Colors.grey.shade200,
                                           child: const Icon(Icons.broken_image, color: Colors.grey))),
                                 ),
                                 if (img['isPrimary'] == true)

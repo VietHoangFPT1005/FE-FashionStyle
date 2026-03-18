@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../config/app_routes.dart';
 import '../../services/service_locator.dart';
+import '../../services/local_notification_service.dart';
 import '../../utils/helpers.dart';
 import '../../widgets/common/custom_button.dart';
 
@@ -49,32 +50,97 @@ class _PaymentScreenState extends State<PaymentScreen> {
           final isPaid = data['isPaid'] == true;
           final status = data['status'] as String? ?? '';
           if (isPaid || status == 'COMPLETED') {
-            if (mounted) setState(() => _isPaid = true);
             _pollTimer?.cancel();
+            if (mounted) {
+              final orderTotal = (widget.paymentData['orderTotal'] as num?)?.toDouble() ?? _amount;
+              // Show local notification
+              await LocalNotificationService.showPaymentSuccessNotification(
+                orderId: _orderId,
+                amount: orderTotal,
+              );
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                AppRoutes.orderSuccess,
+                (r) => r.settings.name == AppRoutes.main,
+                arguments: {
+                  'orderId': _orderId,
+                  'total': orderTotal,
+                  'paymentMethod': 'SEPAY',
+                },
+              );
+            }
           }
         }
       } catch (_) {}
     });
   }
 
+  Future<bool> _onWillPop() async {
+    if (_isPaid) return true;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: const RoundedRectangleBorder(),
+        title: Text('Hủy thanh toán?',
+            style: GoogleFonts.cormorantGaramond(
+                fontSize: 20, fontWeight: FontWeight.w700)),
+        content: const Text(
+            'Bạn chưa hoàn thành thanh toán. Đơn hàng sẽ bị hủy nếu bạn thoát.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text('Tiếp tục thanh toán',
+                  style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold))),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text('Thoát & Hủy đơn',
+                  style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      _pollTimer?.cancel();
+      try {
+        await sl.orderService.cancelOrder(_orderId, reason: 'Khách hàng không hoàn thành thanh toán');
+      } catch (_) {}
+      return true;
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final shouldPop = await _onWillPop();
+        if (shouldPop && context.mounted) {
+          Navigator.pop(context);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.grey.shade50,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.black),
+            onPressed: () async {
+              final shouldPop = await _onWillPop();
+              if (shouldPop && context.mounted) {
+                Navigator.pop(context);
+              }
+            },
+          ),
+          title: Text(
+            'Thanh toán chuyển khoản',
+            style: GoogleFonts.cormorantGaramond(
+                color: Colors.black, fontSize: 20, fontWeight: FontWeight.w700),
+          ),
         ),
-        title: Text(
-          'Thanh toán chuyển khoản',
-          style: GoogleFonts.cormorantGaramond(
-              color: Colors.black, fontSize: 20, fontWeight: FontWeight.w700),
-        ),
+        body: _isPaid ? _buildSuccessView() : _buildPaymentView(),
       ),
-      body: _isPaid ? _buildSuccessView() : _buildPaymentView(),
     );
   }
 

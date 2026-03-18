@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/cart/cart.dart';
+import '../../utils/app_image.dart';
 import '../../utils/extensions.dart';
 
 class CartItemCard extends StatelessWidget {
@@ -29,7 +29,7 @@ class CartItemCard extends StatelessWidget {
                 width: 80,
                 height: 80,
                 child: item.thumbnailUrl != null
-                    ? CachedNetworkImage(imageUrl: item.thumbnailUrl!, fit: BoxFit.cover)
+                    ? AppNetworkImage(imageUrl: item.thumbnailUrl!, fit: BoxFit.cover)
                     : Container(color: Colors.grey.shade200, child: const Icon(Icons.image)),
               ),
             ),

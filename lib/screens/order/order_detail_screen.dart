@@ -48,8 +48,15 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       ),
     );
     if (confirm == true) {
-      await provider.cancelOrder(widget.orderId);
-      if (mounted) Helpers.showSnackBar(context, 'Đã hủy đơn hàng');
+      final success = await provider.cancelOrder(widget.orderId);
+      if (mounted) {
+        if (success) {
+          Helpers.showSnackBar(context, 'Đã hủy đơn hàng thành công');
+          Navigator.pop(context); // Quay về danh sách đơn hàng
+        } else {
+          Helpers.showSnackBar(context, 'Hủy đơn hàng thất bại. Vui lòng thử lại.', isError: true);
+        }
+      }
     }
   }
 

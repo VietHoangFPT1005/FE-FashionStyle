@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/app_image.dart';
 import '../../config/app_routes.dart';
 import '../../services/service_locator.dart';
 import '../../utils/helpers.dart';
@@ -142,9 +143,9 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
     final price = (product['price'] ?? product['basePrice'] ?? 0 as num).toDouble();
     final category = (product['categoryName'] ?? '') as String;
     final isActive = (product['isActive'] ?? true) as bool;
-    final thumbnail = product['thumbnailUrl'] ??
+    final thumbnail = product['primaryImageUrl'] ??
         (product['images'] is List && (product['images'] as List).isNotEmpty
-            ? (product['images'] as List).first['url']
+            ? (product['images'] as List).first['imageUrl']
             : null);
 
     return Card(
@@ -159,8 +160,12 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(6),
                 child: thumbnail != null
-                    ? Image.network(thumbnail as String, width: 56, height: 56, fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _placeholder())
+                    ? AppNetworkImage(
+                        imageUrl: thumbnail as String,
+                        width: 56, height: 56, fit: BoxFit.cover,
+                        placeholder: _placeholder(),
+                        errorWidget: _placeholder(),
+                      )
                     : _placeholder(),
               ),
               const SizedBox(width: 12),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../utils/app_image.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../providers/product_provider.dart';
@@ -118,11 +118,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             PageView.builder(
                               controller: _pageCtrl,
                               itemCount: images.length,
-                              itemBuilder: (_, i) => CachedNetworkImage(
+                              itemBuilder: (_, i) => AppNetworkImage(
                                 imageUrl: images[i].imageUrl,
                                 fit: BoxFit.cover,
-                                placeholder: (_, __) => Container(color: Colors.grey.shade100),
-                                errorWidget: (_, __, ___) => Container(color: Colors.grey.shade100, child: const Icon(Icons.image, size: 60)),
+                                placeholder: Container(color: Colors.grey.shade100),
+                                errorWidget: Container(color: Colors.grey.shade100, child: const Icon(Icons.image, size: 60)),
+                                optimize: false,
                               ),
                             ),
                             if (images.length > 1)
@@ -145,7 +146,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       : Container(
                           color: Colors.grey.shade100,
                           child: product.thumbnailUrl != null
-                              ? CachedNetworkImage(imageUrl: product.thumbnailUrl!, fit: BoxFit.cover)
+                              ? AppNetworkImage(imageUrl: product.thumbnailUrl!, fit: BoxFit.cover, optimize: false)
                               : const Center(child: Icon(Icons.image, size: 80, color: Colors.grey)),
                         ),
                 ),
@@ -415,7 +416,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             if (sizeGuide.description != null) Text(sizeGuide.description!, style: const TextStyle(height: 1.6, fontSize: 15)),
             if (sizeGuide.sizeGuideUrl != null) ...[
               const SizedBox(height: 24),
-              CachedNetworkImage(imageUrl: sizeGuide.sizeGuideUrl!, fit: BoxFit.fitWidth),
+              AppNetworkImage(imageUrl: sizeGuide.sizeGuideUrl!, fit: BoxFit.fitWidth, optimize: false),
             ],
             const SizedBox(height: 40),
           ],

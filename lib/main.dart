@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'app.dart';
 import 'services/service_locator.dart';
+import 'services/local_notification_service.dart';
 import 'providers/auth_provider.dart';
 import 'providers/product_provider.dart';
 import 'providers/cart_provider.dart';
@@ -19,6 +20,9 @@ void main() async {
 
   // Init all services via ServiceLocator
   await sl.init();
+
+  // Init local notifications
+  await LocalNotificationService.init();
 
   runApp(
     MultiProvider(

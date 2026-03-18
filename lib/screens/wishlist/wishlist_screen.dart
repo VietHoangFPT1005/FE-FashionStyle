@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../utils/app_image.dart';
 import '../../config/app_routes.dart';
 import '../../models/wishlist/wishlist.dart';
 import '../../providers/wishlist_provider.dart';
@@ -114,10 +114,10 @@ class _WishlistScreenState extends State<WishlistScreen> {
                 fit: StackFit.expand,
                 children: [
                   item.thumbnailUrl != null
-                      ? CachedNetworkImage(
+                      ? AppNetworkImage(
                           imageUrl: item.thumbnailUrl!, fit: BoxFit.cover,
-                          placeholder: (_, __) => Container(color: Colors.grey.shade100),
-                          errorWidget: (_, __, ___) => Container(
+                          placeholder: Container(color: Colors.grey.shade100),
+                          errorWidget: Container(
                             color: Colors.grey.shade100,
                             child: const Icon(Icons.image_not_supported_outlined, color: Colors.grey)),
                         )
