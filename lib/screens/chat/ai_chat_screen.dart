@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../models/chat/chat_message.dart';
 import '../../services/service_locator.dart';
 import '../../utils/helpers.dart';
+import '../../utils/app_image.dart';
+import '../product/product_detail_screen.dart';
 
 class AiChatScreen extends StatefulWidget {
   const AiChatScreen({super.key});
@@ -402,7 +404,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
                             blurRadius: 4, offset: const Offset(0, 1))],
                       ),
                       child: Text(
-                        msg.content,
+                        msg.content.replaceAll(RegExp(r'\[ID:\d+\]'), '').trim(),
                         style: TextStyle(
                             color: isUser ? Colors.white : Colors.black87,
                             height: 1.5, fontSize: 14),
@@ -442,105 +444,186 @@ class _AiChatScreenState extends State<AiChatScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(bottom: 6),
-          child: Text('Sản phẩm gợi ý cho bạn:',
-              style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w500)),
-        ),
-        SizedBox(
-          height: 165,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: products.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemBuilder: (_, i) => _buildProductCard(products[i]),
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(
+            children: [
+              const Icon(Icons.auto_awesome, size: 13, color: Colors.amber),
+              const SizedBox(width: 4),
+              Text(
+                'Sản phẩm phù hợp với bạn',
+                style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade700,
+                    fontWeight: FontWeight.w600),
+              ),
+            ],
           ),
         ),
+        ...products.map((p) => _buildProductCard(p)),
       ],
     );
   }
 
   Widget _buildProductCard(ChatSuggestedProduct product) {
-    final displayPrice = product.salePrice != null && product.salePrice! < product.price
-        ? product.salePrice!
-        : product.price;
     final hasDiscount = product.salePrice != null && product.salePrice! < product.price;
+    final displayPrice = hasDiscount ? product.salePrice! : product.price;
 
-    return Container(
-      width: 120,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.07), blurRadius: 6)
-        ],
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ProductDetailScreen(productId: product.productId),
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-            child: product.primaryImage != null
-                ? Image.network(
-                    product.primaryImage!,
-                    height: 85, width: double.infinity, fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _imagePlaceholder(),
-                  )
-                : _imagePlaceholder(),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(6),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    product.name,
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
-                    maxLines: 2, overflow: TextOverflow.ellipsis,
-                  ),
-                  const Spacer(),
-                  if (product.recommendedSize != null)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                      margin: const EdgeInsets.only(bottom: 3),
-                      decoration: BoxDecoration(
-                          color: Colors.black, borderRadius: BorderRadius.circular(4)),
-                      child: Text('Size: ${product.recommendedSize}',
-                          style: const TextStyle(fontSize: 9, color: Colors.white)),
-                    ),
-                  Text(
-                    Helpers.formatCurrency(displayPrice),
-                    style: TextStyle(
-                      fontSize: 11, fontWeight: FontWeight.bold,
-                      color: hasDiscount ? Colors.red : Colors.black,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (hasDiscount)
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.07),
+                blurRadius: 8,
+                offset: const Offset(0, 2))
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Product image
+            ClipRRect(
+              borderRadius: const BorderRadius.horizontal(left: Radius.circular(14)),
+              child: product.primaryImage != null && product.primaryImage!.isNotEmpty
+                  ? AppNetworkImage(
+                      imageUrl: product.primaryImage!,
+                      width: 110, height: 130, fit: BoxFit.cover,
+                      errorWidget: _imagePlaceholder(110, 130),
+                    )
+                  : _imagePlaceholder(110, 130),
+            ),
+            // Product details
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      Helpers.formatCurrency(product.price),
-                      style: TextStyle(
-                          fontSize: 9,
-                          color: Colors.grey.shade400,
-                          decoration: TextDecoration.lineThrough),
+                      product.name,
+                      style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                ],
+                    const SizedBox(height: 6),
+                    // Recommended size badge
+                    if (product.recommendedSize != null) ...[
+                      Row(
+                        children: [
+                          const Icon(Icons.straighten, size: 12, color: Colors.black54),
+                          const SizedBox(width: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                                color: Colors.black,
+                                borderRadius: BorderRadius.circular(6)),
+                            child: Text(
+                              'Size phù hợp: ${product.recommendedSize}',
+                              style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                    ],
+                    // Price row
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text(
+                          Helpers.formatCurrency(displayPrice),
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: hasDiscount ? Colors.red.shade600 : Colors.black),
+                        ),
+                        if (hasDiscount) ...[
+                          const SizedBox(width: 6),
+                          Text(
+                            Helpers.formatCurrency(product.price),
+                            style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade400,
+                                decoration: TextDecoration.lineThrough),
+                          ),
+                        ],
+                      ],
+                    ),
+                    if (hasDiscount) ...[
+                      const SizedBox(height: 3),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(4)),
+                        child: Text(
+                          'Giảm ${(((product.price - product.salePrice!) / product.price) * 100).toStringAsFixed(0)}%',
+                          style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.red.shade600,
+                              fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    // View detail button
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                          decoration: BoxDecoration(
+                              color: Colors.black,
+                              borderRadius: BorderRadius.circular(20)),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('Xem chi tiết',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w500)),
+                              SizedBox(width: 3),
+                              Icon(Icons.arrow_forward_ios,
+                                  size: 9, color: Colors.white),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _imagePlaceholder() {
+  Widget _imagePlaceholder(double width, double height) {
     return Container(
-      height: 85, color: Colors.grey.shade100,
+      width: width,
+      height: height,
+      color: Colors.grey.shade100,
       child: const Center(
-          child: Icon(Icons.image_outlined, color: Colors.grey, size: 28)),
+          child: Icon(Icons.image_outlined, color: Colors.grey, size: 32)),
     );
   }
 
