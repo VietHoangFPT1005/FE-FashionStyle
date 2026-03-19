@@ -52,7 +52,16 @@ class ProductService {
     final response = await _client.get(ApiConfig.productVariants(productId));
     return ApiResponse.fromJson(
       response.data,
-      (d) => (d as List).map((e) => ProductVariant.fromJson(e)).toList(),
+      (d) {
+        // API trả về VariantListResponse { colors, sizes, variants:[...] }
+        // không phải List trực tiếp
+        if (d is List) {
+          return d.map((e) => ProductVariant.fromJson(e)).toList();
+        }
+        final map = d as Map<String, dynamic>;
+        final list = map['variants'] as List? ?? [];
+        return list.map((e) => ProductVariant.fromJson(e as Map<String, dynamic>)).toList();
+      },
     );
   }
 
