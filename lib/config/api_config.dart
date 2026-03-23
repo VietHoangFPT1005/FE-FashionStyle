@@ -1,12 +1,22 @@
 class ApiConfig {
-  // === Base URL ===
-  // Android emulator -> 10.0.2.2 | iOS simulator -> localhost | Real device -> IP LAN
-  // Doi thanh IP LAN cua ban neu dung thiet bi that (vd: 192.168.1.11)
-  static const String baseUrl = 'http://10.0.2.2:5118/api';
+  // === Chọn môi trường ===
+  // true  → chạy LOCAL (tạo tài khoản, test nhanh, không tốn quota)
+  // false → chạy PRODUCTION trên Render
+  // static const bool useLocalServer = false;
+  static const bool useLocalServer = true;
+
+  // === URL theo môi trường ===
+  // Local - điện thoại thật cần cùng WiFi với máy tính
+  static const String _localUrl = 'http://192.168.102.20:5118/api';
+  // Production - Render deploy
+  static const String _productionUrl = 'https://be-fashionstyle.onrender.com/api';
+
+  static const String baseUrl = useLocalServer ? _localUrl : _productionUrl;
 
   // === Timeout (ms) ===
-  static const int connectTimeout = 15000;
-  static const int receiveTimeout = 15000;
+  // Local: 15s | Production Render cold start có thể mất 30-50s
+  static const int connectTimeout = useLocalServer ? 15000 : 60000;
+  static const int receiveTimeout = useLocalServer ? 15000 : 60000;
 
   // === OpenStreetMap / Nominatim ===
   static const String osmBaseUrl = 'https://nominatim.openstreetmap.org';

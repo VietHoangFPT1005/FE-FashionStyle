@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import '../../config/api_config.dart';
 import '../../config/app_constants.dart';
+import '../../services/location_service.dart';
 import '../../services/service_locator.dart';
 import '../../utils/helpers.dart';
 
@@ -24,28 +25,39 @@ class _ShipperDeliveryScreenState extends State<ShipperDeliveryScreen> {
   double _currentSpeed = 0;
   double _distanceRemaining = 0;
 
-  late final double _destLat;
-  late final double _destLng;
+  double _destLat = AppConstants.defaultLat;
+  double _destLng = AppConstants.defaultLng;
+  bool _isGeocodingDest = false;
   late final String _destAddress;
   late final int _orderId;
 
   @override
   void initState() {
     super.initState();
-    // shippingInfo có thể nằm trong nested object hoặc top-level
     final shippingInfo = widget.orderData['shippingInfo'] as Map<String, dynamic>?;
-    _destLat = (shippingInfo?['latitude'] as num?)?.toDouble()
-        ?? (widget.orderData['latitude'] as num?)?.toDouble()
-        ?? AppConstants.defaultLat;
-    _destLng = (shippingInfo?['longitude'] as num?)?.toDouble()
-        ?? (widget.orderData['longitude'] as num?)?.toDouble()
-        ?? AppConstants.defaultLng;
+    final rawLat = (shippingInfo?['latitude'] as num?)?.toDouble()
+        ?? (widget.orderData['latitude'] as num?)?.toDouble();
+    final rawLng = (shippingInfo?['longitude'] as num?)?.toDouble()
+        ?? (widget.orderData['longitude'] as num?)?.toDouble();
+
+    // Kiểm tra toạ độ hợp lệ trong lãnh thổ VN
+    if (rawLat != null && rawLng != null && _isInVietnam(rawLat, rawLng)) {
+      _destLat = rawLat;
+      _destLng = rawLng;
+    }
+
     _destAddress = (shippingInfo?['address']
         ?? widget.orderData['shippingAddress']
         ?? widget.orderData['address']
         ?? '').toString();
     _orderId = widget.orderData['orderId'] ?? widget.orderData['id'] ?? 0;
+
     _initCurrentLocation();
+
+    // Nếu không có toạ độ hợp lệ thì geocode địa chỉ Customer qua Nominatim
+    if (rawLat == null || rawLng == null || !_isInVietnam(rawLat, rawLng)) {
+      _geocodeDestAddress();
+    }
   }
 
   @override
@@ -88,6 +100,32 @@ class _ShipperDeliveryScreenState extends State<ShipperDeliveryScreen> {
       _currentPosition!,
       LatLng(_destLat, _destLng),
     );
+  }
+
+  /// Geocode địa chỉ Customer qua Nominatim khi DB không có toạ độ
+  Future<void> _geocodeDestAddress() async {
+    if (_destAddress.isEmpty) return;
+    setState(() => _isGeocodingDest = true);
+    try {
+      final results = await LocationService.searchAddress(_destAddress);
+      if (results.isNotEmpty && mounted) {
+        final lat = double.tryParse(results.first['lat']?.toString() ?? '');
+        final lng = double.tryParse(results.first['lon']?.toString() ?? '');
+        if (lat != null && lng != null && _isInVietnam(lat, lng)) {
+          setState(() {
+            _destLat = lat;
+            _destLng = lng;
+            _calculateDistance();
+          });
+          // Di chuyển camera đến địa chỉ vừa tìm được
+          _mapCtrl.move(LatLng(_destLat, _destLng), 14);
+        }
+      }
+    } catch (e) {
+      debugPrint('Geocode dest error: $e');
+    } finally {
+      if (mounted) setState(() => _isGeocodingDest = false);
+    }
   }
 
   Future<void> _startTracking() async {
@@ -285,7 +323,11 @@ class _ShipperDeliveryScreenState extends State<ShipperDeliveryScreen> {
                   // Order info
                   Row(
                     children: [
-                      const Icon(Icons.location_on, color: Colors.red, size: 20),
+                      _isGeocodingDest
+                          ? const SizedBox(
+                              width: 20, height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.red))
+                          : const Icon(Icons.location_on, color: Colors.red, size: 20),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
