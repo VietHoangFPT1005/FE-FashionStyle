@@ -8,7 +8,8 @@ class ChatService {
   ChatService(this._client);
 
   Future<ApiResponse> sendMessage(SendMessageRequest request) async {
-    final response = await _client.post(ApiConfig.chatAi, data: request.toJson());
+    // Dùng postAi để có timeout 120s (Gemini cần thời gian generate)
+    final response = await _client.postAi(ApiConfig.chatAi, data: request.toJson());
     return ApiResponse.fromJson(response.data, null);
   }
 

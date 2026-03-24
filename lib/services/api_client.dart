@@ -44,6 +44,18 @@ class ApiClient {
     return _dio.post(path, data: data, queryParameters: queryParams);
   }
 
+  // Dùng cho AI Chat — timeout dài hơn vì Gemini cần thời gian generate
+  Future<Response> postAi(String path, {dynamic data, Map<String, dynamic>? queryParams}) {
+    return _dio.post(
+      path,
+      data: data,
+      queryParameters: queryParams,
+      options: Options(
+        receiveTimeout: const Duration(milliseconds: ApiConfig.aiReceiveTimeout),
+      ),
+    );
+  }
+
   Future<Response> put(String path, {dynamic data, Map<String, dynamic>? queryParams}) {
     return _dio.put(path, data: data, queryParameters: queryParams);
   }
