@@ -35,11 +35,19 @@ class ProductService {
   }
 
   Future<ApiResponse<List<Product>>> searchProducts(String keyword, {int page = 1, int pageSize = 20}) async {
-    final params = {'keyword': keyword, 'page': page, 'pageSize': pageSize};
-    final response = await _client.get(ApiConfig.productSearch, queryParams: params);
+    // BE /products/search dùng param 'q', còn /products dùng param 'search'
+    // Dùng /products với 'search' để trả về đầy đủ Product data + pagination
+    final params = {'search': keyword, 'page': page, 'pageSize': pageSize};
+    final response = await _client.get(ApiConfig.products, queryParams: params);
     return ApiResponse.fromJson(
       response.data,
-      (d) => (d as List).map((e) => Product.fromJson(e)).toList(),
+      (d) {
+        // BE trả về PaginatedResponse { items: [...], total, page, pageSize }
+        if (d is List) return d.map((e) => Product.fromJson(e as Map<String, dynamic>)).toList();
+        final map = d as Map<String, dynamic>;
+        final items = map['items'] as List? ?? [];
+        return items.map((e) => Product.fromJson(e as Map<String, dynamic>)).toList();
+      },
     );
   }
 

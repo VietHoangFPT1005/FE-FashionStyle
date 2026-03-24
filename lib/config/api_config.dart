@@ -2,12 +2,12 @@ class ApiConfig {
   // === Chọn môi trường ===
   // true  → chạy LOCAL (tạo tài khoản, test nhanh, không tốn quota)
   // false → chạy PRODUCTION trên Render
-  static const bool useLocalServer = true;
+  static const bool useLocalServer = false;
 
   // === URL theo môi trường ===
   // Local - điện thoại thật cần cùng WiFi với máy tính
-  static const String _localUrl = 'http://10.0.2.2:5118/api';
-  // static const String _localUrl = 'http://192.168.102.20:5118/api'; Ip của điện thoại thật
+  // static const String _localUrl = 'http://10.0.2.2:5118/api';
+  static const String _localUrl = 'http://192.168.102.20:5118/api'; // Ip của điện thoại thật
   // Production - Render deploy
   static const String _productionUrl = 'https://be-fashionstyle.onrender.com/api';
 

@@ -46,15 +46,15 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         setState(() => _isLoading = false);
         return;
       }
-      final res = await sl.authService.resendOtp(user.email, type: 'CHANGE_PASSWORD');
+      final res = await sl.authService.resendOtp(user.email, type: 'RESET_PASSWORD');
       if (res.success) {
         setState(() => _otpSent = true);
         if (mounted) Helpers.showSnackBar(context, 'OTP đã được gửi đến email của bạn');
       } else {
         if (mounted) Helpers.showSnackBar(context, res.message ?? 'Gửi OTP thất bại', isError: true);
       }
-    } catch (_) {
-      if (mounted) Helpers.showSnackBar(context, 'Gửi OTP thất bại. Vui lòng thử lại.', isError: true);
+    } catch (e) {
+      if (mounted) Helpers.showSnackBar(context, 'Gửi OTP thất bại: $e', isError: true);
     }
     setState(() => _isLoading = false);
   }
@@ -72,14 +72,28 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       );
       if (res.success) {
         if (mounted) {
-          Helpers.showSnackBar(context, 'Đổi mật khẩu thành công!');
+          Helpers.showSnackBar(context, '✅ Đổi mật khẩu thành công!');
           Navigator.pop(context);
         }
       } else {
-        if (mounted) Helpers.showSnackBar(context, res.message ?? 'Đổi mật khẩu thất bại', isError: true);
+        // Dịch lỗi từ BE sang tiếng Việt cho dễ đọc
+        final rawMsg = res.message ?? '';
+        final String displayMsg;
+        if (rawMsg.toLowerCase().contains('current password is incorrect')) {
+          displayMsg = 'Mật khẩu hiện tại không đúng';
+        } else if (rawMsg.toLowerCase().contains('invalid or expired')) {
+          displayMsg = 'Mã OTP không hợp lệ hoặc đã hết hạn. Vui lòng gửi lại OTP';
+        } else if (rawMsg.toLowerCase().contains('different')) {
+          displayMsg = 'Mật khẩu mới phải khác mật khẩu hiện tại';
+        } else if (rawMsg.isNotEmpty) {
+          displayMsg = rawMsg;
+        } else {
+          displayMsg = 'Đổi mật khẩu thất bại. Vui lòng thử lại';
+        }
+        if (mounted) Helpers.showSnackBar(context, displayMsg, isError: true);
       }
-    } catch (_) {
-      if (mounted) Helpers.showSnackBar(context, 'Đổi mật khẩu thất bại. Vui lòng thử lại.', isError: true);
+    } catch (e) {
+      if (mounted) Helpers.showSnackBar(context, 'Lỗi kết nối: $e', isError: true);
     }
     setState(() => _isLoading = false);
   }

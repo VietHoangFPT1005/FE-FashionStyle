@@ -30,7 +30,8 @@ class _OrderListScreenState extends State<OrderListScreen>
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
     _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) {
+      // indexIsChanging = true ngay khi tab bắt đầu thay đổi, index đã là tab mới
+      if (_tabController.indexIsChanging) {
         context.read<OrderProvider>().loadOrders(
             status: _tabs[_tabController.index]['status'] as String?);
       }

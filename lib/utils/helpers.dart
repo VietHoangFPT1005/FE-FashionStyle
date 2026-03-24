@@ -44,15 +44,16 @@ class Helpers {
 
   // ===== Snackbar =====
   static void showSnackBar(BuildContext context, String message, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? Colors.red.shade700 : Colors.green.shade700,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message, style: const TextStyle(fontSize: 14)),
+          backgroundColor: isError ? Colors.red.shade700 : Colors.green.shade700,
+          behavior: SnackBarBehavior.fixed, // fixed thay vì floating để không bị che bởi keyboard
+          duration: Duration(seconds: isError ? 5 : 3), // lỗi hiện 5s, thành công 3s
+        ),
+      );
   }
 
   // ===== Order status helpers =====

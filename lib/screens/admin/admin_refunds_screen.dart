@@ -31,7 +31,7 @@ class _AdminRefundsScreenState extends State<AdminRefundsScreen> with SingleTick
     super.initState();
     _tabCtrl = TabController(length: _tabs.length, vsync: this);
     _tabCtrl.addListener(() {
-      if (!_tabCtrl.indexIsChanging) {
+      if (_tabCtrl.indexIsChanging) {
         _loadRefunds(_tabs[_tabCtrl.index]['status'] as String?);
       }
     });

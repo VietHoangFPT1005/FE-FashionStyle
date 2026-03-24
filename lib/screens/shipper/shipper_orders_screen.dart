@@ -37,7 +37,7 @@ class _ShipperOrdersScreenState extends State<ShipperOrdersScreen>
     super.initState();
     _tabCtrl = TabController(length: _tabs.length, vsync: this);
     _tabCtrl.addListener(() {
-      if (!_tabCtrl.indexIsChanging) {
+      if (_tabCtrl.indexIsChanging) {
         _loadOrders(_tabs[_tabCtrl.index]['status'] as String?);
       }
     });
@@ -307,6 +307,231 @@ class _ShipperOrdersScreenState extends State<ShipperOrdersScreen>
     );
   }
 
+  void _showOrderDetail(Map<String, dynamic> order) {
+    final orderCode = order['orderCode'] ?? '#${order['orderId'] ?? order['id']}';
+    final status = (order['status'] ?? '').toString().toUpperCase();
+    final total = (order['total'] as num?)?.toDouble() ?? 0;
+    final shippingInfo = order['shippingInfo'] as Map<String, dynamic>?;
+    final address = shippingInfo?['address'] ?? order['shippingAddress'] ?? '';
+    final customerName = shippingInfo?['name'] ?? order['customerName'] ?? '';
+    final customerPhone = shippingInfo?['phone'] ?? order['customerPhone'] ?? '';
+    final totalItems = order['totalItems'] ?? 0;
+    final paymentMethod = order['paymentMethod'] ?? '';
+    final trackingNumber = order['trackingNumber'] ?? order['shippingCode'];
+    final deliveryAttempts = (order['deliveryAttempts'] as num?)?.toInt() ?? 0;
+    final cancelReason = order['cancelReason'] as String?;
+    final createdAt = order['createdAt'] != null
+        ? DateTime.tryParse(order['createdAt'].toString())
+        : null;
+    final items = (order['items'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+
+    Color statusColor;
+    String statusText;
+    switch (status) {
+      case 'PROCESSING': statusColor = Colors.blue; statusText = 'Chờ lấy hàng'; break;
+      case 'SHIPPING': statusColor = Colors.orange; statusText = 'Đang giao'; break;
+      case 'DELIVERED': statusColor = Colors.green; statusText = 'Đã giao'; break;
+      case 'CANCELLED': statusColor = Colors.red; statusText = 'Đã huỷ'; break;
+      default: statusColor = Colors.grey; statusText = status;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.7,
+        maxChildSize: 0.92,
+        minChildSize: 0.4,
+        builder: (_, scrollCtrl) => ListView(
+          controller: scrollCtrl,
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          children: [
+            // Handle bar
+            Center(
+              child: Container(
+                width: 36, height: 4, margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+            // Header
+            Row(
+              children: [
+                Expanded(
+                  child: Text(orderCode,
+                      style: GoogleFonts.cormorantGaramond(
+                          fontSize: 20, fontWeight: FontWeight.w700)),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6)),
+                  child: Text(statusText,
+                      style: TextStyle(
+                          color: statusColor, fontSize: 13,
+                          fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ),
+            if (createdAt != null) ...[
+              const SizedBox(height: 4),
+              Text(Helpers.formatDateTime(createdAt),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+            ],
+            const Divider(height: 24),
+
+            // Thông tin khách hàng
+            _detailSection('Thông tin giao hàng', Icons.local_shipping_outlined, [
+              if (customerName.isNotEmpty) _detailRow(Icons.person_outline, customerName),
+              if (customerPhone.isNotEmpty) _detailRow(Icons.phone_outlined, customerPhone),
+              if (address.isNotEmpty) _detailRow(Icons.location_on_outlined, address, maxLines: 3),
+            ]),
+
+            // Thông tin đơn hàng
+            _detailSection('Thông tin đơn hàng', Icons.receipt_long_outlined, [
+              _detailRow(Icons.shopping_bag_outlined, '$totalItems sản phẩm'),
+              _detailRow(Icons.payments_outlined,
+                  Helpers.formatCurrency(total) +
+                      (paymentMethod.isNotEmpty ? ' · $paymentMethod' : '')),
+              if (trackingNumber != null && trackingNumber.toString().isNotEmpty)
+                _detailRow(Icons.qr_code_outlined, 'Mã vận đơn: $trackingNumber'),
+            ]),
+
+            // Danh sách sản phẩm (nếu có)
+            if (items.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text('Sản phẩm',
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              const SizedBox(height: 8),
+              ...items.map((item) {
+                final name = item['productName'] ?? item['name'] ?? 'Sản phẩm';
+                final qty = item['quantity'] ?? 1;
+                final price = (item['price'] as num?)?.toDouble() ?? 0;
+                final variant = [item['size'], item['color']]
+                    .where((v) => v != null && v.toString().isNotEmpty)
+                    .join(' / ');
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(name.toString(),
+                                style: const TextStyle(
+                                    fontSize: 13, fontWeight: FontWeight.w500),
+                                maxLines: 2, overflow: TextOverflow.ellipsis),
+                            if (variant.isNotEmpty)
+                              Text(variant,
+                                  style: TextStyle(
+                                      fontSize: 11, color: Colors.grey.shade500)),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text('x$qty  ${Helpers.formatCurrency(price)}',
+                          style: const TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w500)),
+                    ],
+                  ),
+                );
+              }),
+            ],
+
+            // Cảnh báo nếu có
+            if (deliveryAttempts > 0 && status != 'DELIVERED') ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.shade200)),
+                child: Row(children: [
+                  Icon(Icons.warning_amber_rounded,
+                      color: Colors.orange.shade700, size: 18),
+                  const SizedBox(width: 8),
+                  Text('Đã thất bại $deliveryAttempts/3 lần',
+                      style: TextStyle(
+                          color: Colors.orange.shade700,
+                          fontSize: 13, fontWeight: FontWeight.w600)),
+                ]),
+              ),
+            ],
+            if (status == 'CANCELLED' &&
+                cancelReason != null &&
+                cancelReason.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade200)),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.cancel_outlined,
+                        color: Colors.red.shade700, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text('Lý do huỷ: $cancelReason',
+                          style: TextStyle(
+                              color: Colors.red.shade700, fontSize: 13)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _detailSection(String title, IconData icon, List<Widget> rows) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(children: [
+          Icon(icon, size: 15, color: Colors.black54),
+          const SizedBox(width: 6),
+          Text(title,
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+        ]),
+        const SizedBox(height: 8),
+        ...rows,
+        const Divider(height: 24),
+      ],
+    );
+  }
+
+  Widget _detailRow(IconData icon, String text, {int maxLines = 1}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 15, color: Colors.grey.shade500),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(text,
+                style:
+                    TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                maxLines: maxLines, overflow: TextOverflow.ellipsis),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildOrderCard(Map<String, dynamic> order) {
     final orderId = order['orderId'] ?? order['id'] ?? 0;
     final orderCode = order['orderCode'] ?? '#$orderId';
@@ -348,7 +573,9 @@ class _ShipperOrdersScreenState extends State<ShipperOrdersScreen>
         statusText = status;
     }
 
-    return Container(
+    return GestureDetector(
+      onTap: () => _showOrderDetail(order),
+      child: Container(
       color: Colors.white,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -476,7 +703,7 @@ class _ShipperOrdersScreenState extends State<ShipperOrdersScreen>
           ),
         ],
       ),
-    );
+    )); // GestureDetector
   }
 
   Widget _infoRow(IconData icon, String text, {Color? iconColor, Color? textColor}) {

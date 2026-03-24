@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -24,6 +25,8 @@ class _ShipperDeliveryScreenState extends State<ShipperDeliveryScreen> {
   StreamSubscription<Position>? _positionStream;
   double _currentSpeed = 0;
   double _distanceRemaining = 0;
+  List<LatLng> _routePoints = [];
+  bool _isFetchingRoute = false;
 
   double _destLat = AppConstants.defaultLat;
   double _destLng = AppConstants.defaultLng;
@@ -89,6 +92,42 @@ class _ShipperDeliveryScreenState extends State<ShipperDeliveryScreen> {
         _currentPosition = position;
         _calculateDistance();
       });
+      _fetchRoute();
+    }
+  }
+
+  /// Lấy tuyến đường thực tế từ OSRM
+  Future<void> _fetchRoute() async {
+    if (_currentPosition == null) return;
+    setState(() => _isFetchingRoute = true);
+    try {
+      final dio = Dio();
+      final String url =
+          'https://router.project-osrm.org/route/v1/driving/'
+          '${_currentPosition!.longitude},${_currentPosition!.latitude};'
+          '$_destLng,$_destLat'
+          '?overview=full&geometries=geojson';
+      final response = await dio.get(url,
+          options: Options(receiveTimeout: const Duration(seconds: 15)));
+      if (response.statusCode == 200) {
+        final data = response.data as Map<String, dynamic>;
+        final routes = data['routes'] as List?;
+        if (routes != null && routes.isNotEmpty) {
+          final geometry = routes[0]['geometry'] as Map<String, dynamic>?;
+          final coords = geometry?['coordinates'] as List?;
+          if (coords != null && mounted) {
+            final points = coords
+                .map((c) => LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble()))
+                .toList();
+            setState(() => _routePoints = points);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('OSRM route error: $e');
+      // Fallback: giữ nguyên đường thẳng (routePoints rỗng)
+    } finally {
+      if (mounted) setState(() => _isFetchingRoute = false);
     }
   }
 
@@ -119,6 +158,7 @@ class _ShipperDeliveryScreenState extends State<ShipperDeliveryScreen> {
           });
           // Di chuyển camera đến địa chỉ vừa tìm được
           _mapCtrl.move(LatLng(_destLat, _destLng), 14);
+          _fetchRoute();
         }
       }
     } catch (e) {
@@ -158,6 +198,8 @@ class _ShipperDeliveryScreenState extends State<ShipperDeliveryScreen> {
           _calculateDistance();
         });
         _mapCtrl.move(_currentPosition!, _mapCtrl.camera.zoom);
+        // Cập nhật lộ trình mỗi khi di chuyển ~100m
+        if (!_isFetchingRoute) _fetchRoute();
       }
     });
 
@@ -234,14 +276,22 @@ class _ShipperDeliveryScreenState extends State<ShipperDeliveryScreen> {
               urlTemplate: ApiConfig.osmTileUrl,
               userAgentPackageName: 'com.fashionstyle.app',
             ),
-            // Polyline from shipper to destination
+            // Polyline lộ trình thực tế (OSRM) hoặc đường thẳng dự phòng
             if (_currentPosition != null)
               PolylineLayer(polylines: [
-                Polyline(
-                  points: [_currentPosition!, dest],
-                  color: Colors.blue.withAlpha(150),
-                  strokeWidth: 3,
-                ),
+                if (_routePoints.length >= 2)
+                  Polyline(
+                    points: _routePoints,
+                    color: Colors.blue,
+                    strokeWidth: 4,
+                  )
+                else
+                  Polyline(
+                    points: [_currentPosition!, dest],
+                    color: Colors.blue.withAlpha(100),
+                    strokeWidth: 2,
+                    pattern: StrokePattern.dashed(segments: const [10, 6]),
+                  ),
               ]),
             MarkerLayer(markers: [
               // Destination marker
@@ -274,6 +324,17 @@ class _ShipperDeliveryScreenState extends State<ShipperDeliveryScreen> {
             ]),
           ],
         ),
+
+        // Route loading indicator
+        if (_isFetchingRoute)
+          const Positioned(
+            top: 12,
+            right: 16,
+            child: SizedBox(
+              width: 24, height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.blue),
+            ),
+          ),
 
         // Speed & distance info bar
         if (_isTracking && _currentPosition != null)

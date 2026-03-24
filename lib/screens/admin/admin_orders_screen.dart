@@ -34,7 +34,8 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> with SingleTicker
     super.initState();
     _tabCtrl = TabController(length: _tabs.length, vsync: this);
     _tabCtrl.addListener(() {
-      if (!_tabCtrl.indexIsChanging) {
+      // indexIsChanging = true ngay khi tab bắt đầu thay đổi, index đã là tab mới
+      if (_tabCtrl.indexIsChanging) {
         _loadOrders(_tabs[_tabCtrl.index]['status'] as String?);
       }
     });
